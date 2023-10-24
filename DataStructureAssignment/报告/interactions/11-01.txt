@@ -1,0 +1,41 @@
+正在加载文件，请稍后...
+加载完成。
+输入两个单词(用空格分隔，键入 Ctrl+C 以中止): work play
+`work` -> `play` 的最短路径搜索结果:
+work->pork->perk->peak->plak->play
+work->woak->weak->peak->plak->play
+概要: 共存在 2 条路径, 最短路径长度为 6
+输入两个单词(用空格分隔，键入 Ctrl+C 以中止): render joyful
+`render` -> `joyful` 的最短路径搜索结果:
+错误: 不存在可实现转换的路径
+输入两个单词(用空格分隔，键入 Ctrl+C 以中止): shift moody
+`shift` -> `moody` 的最短路径搜索结果:
+shift->shirt->shire->saire->maire->moire->moore->moory->moody
+shift->shirt->shire->shore->phore->poore->moore->moory->moody
+shift->shirt->short->shore->phore->poore->moore->moory->moody
+shift->shipt->ships->shops->whops->woops->woods->moods->moody
+shift->whift->whipt->whips->whops->woops->woods->moods->moody
+shift->shipt->whipt->whips->whops->woops->woods->moods->moody
+shift->shipt->ships->whips->whops->woops->woods->moods->moody
+shift->shipt->ships->shops->shots->soots->moots->moods->moody
+shift->shirt->short->shott->shots->soots->moots->moods->moody
+shift->shipt->ships->shits->shots->soots->moots->moods->moody
+shift->shiff->shilf->shily->soily->souly->mouly->moudy->moody
+shift->shaft->shalt->shult->soult->souly->mouly->moudy->moody
+shift->shaft->shalt->shult->soult->moult->mouly->moudy->moody
+shift->shiff->shilf->shily->soily->solly->molly->moldy->moody
+shift->shiff->shilf->shily->soily->boily->booly->boody->moody
+shift->shist->suist->buist->boist->boost->boosy->boody->moody
+shift->shipt->ships->shops->whops->woops->woods->woody->moody
+shift->whift->whipt->whips->whops->woops->woods->woody->moody
+shift->shipt->whipt->whips->whops->woops->woods->woody->moody
+shift->shipt->ships->whips->whops->woops->woods->woody->moody
+概要: 共存在 20 条路径, 最短路径长度为 9
+输入两个单词(用空格分隔，键入 Ctrl+C 以中止): bumb pump
+`bumb` -> `pump` 的最短路径搜索结果:
+* 起始单词不在列表内。请注意结果包括了起始单词不在列表内的情况。
+bumb->bump->pump
+概要: 共存在 1 条路径, 最短路径长度为 3
+输入两个单词(用空格分隔，键入 Ctrl+C 以中止): pump bumb
+`pump` -> `bumb` 的最短路径搜索结果:
+错误: 不存在可实现转换的路径
