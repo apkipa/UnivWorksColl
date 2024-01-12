@@ -1,0 +1,86 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Resources">
+      <UniqueIdentifier>accd3aa8-1ba0-4223-9bbe-0c431709210b</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tga;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Generated Files">
+      <UniqueIdentifier>{926ab91d-31b4-48c3-b9a4-e681349f27f0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Pages">
+      <UniqueIdentifier>{86e1d902-33de-449a-b63e-e419a882cb77}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Code">
+      <UniqueIdentifier>{fb24a1b2-8bb4-4d7b-974d-e78fbd576de1}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="pch.cpp" />
+    <ClCompile Include="Class.cpp" />
+    <ClCompile Include="$(GeneratedFilesDir)module.g.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Code\Lexer.cpp">
+      <Filter>Code</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\Logger.cpp">
+      <Filter>Code</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\Parser.cpp">
+      <Filter>Code</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\Executor.cpp">
+      <Filter>Code</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\CodeGen.cpp">
+      <Filter>Code</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="Code\Executor.hpp">
+      <Filter>Code</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\Lexer.hpp">
+      <Filter>Code</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\Logger.hpp">
+      <Filter>Code</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\public.h">
+      <Filter>Code</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\Parser.hpp">
+      <Filter>Code</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\CodeGen.hpp">
+      <Filter>Code</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Midl Include="Class.idl" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.def" />
+    <None Include="packages.config" />
+    <None Include="dummy.exe" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="PropertySheet.props" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="readme.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ApplicationDefinition Include="App.xaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Include="MainWindow.xaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <AppxManifest Include="Package.appxmanifest" />
+  </ItemGroup>
+  <ItemGroup>
+    <Manifest Include="App.exe.manifest" />
+  </ItemGroup>
+</Project>

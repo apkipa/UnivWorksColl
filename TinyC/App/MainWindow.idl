@@ -1,0 +1,6 @@
+namespace TinyC.App {
+    [default_interface]
+    runtimeclass MainWindow : Win32Xaml.Window {
+        MainWindow();
+    }
+}

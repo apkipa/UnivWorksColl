@@ -1,0 +1,6 @@
+.blur-background {
+  background: rgba(255, 255, 255, 0.6);
+  backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
+  backdrop-filter: blur(12px);
+}

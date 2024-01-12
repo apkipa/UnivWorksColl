@@ -1,0 +1,110 @@
+﻿<w32x:Window
+    x:Class="TinyC.App.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:TinyC.App"
+    xmlns:w32x="using:Win32Xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
+    xmlns:me="using:MicaEditor"
+    mc:Ignorable="d"
+    Title="TinyC">
+
+    <Grid x:Name="LayoutRoot" Background="Azure">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <!--
+        <Grid x:Name="CodeEditCtrlBehindGrid" Grid.Row="0" Grid.ColumnSpan="999"/>
+        -->
+        <Grid x:Name="TopRectangle" Background="{ThemeResource SystemControlAcrylicWindowBrush}"
+              Grid.Row="0" Grid.ColumnSpan="999"/>
+        <TextBlock Text="TinyC" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="12,0,8,0"
+                   IsHitTestVisible="False" FontSize="12"/>
+        <muxc:MenuBar Grid.Column="1" Background="{x:Null}">
+            <muxc:MenuBarItem Title="File">
+                <MenuFlyoutItem Text="New" Click="MenuFileNewItem_Click"/>
+                <MenuFlyoutItem Text="Open..." Click="MenuFileOpenItem_Click">
+                    <MenuFlyoutItem.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control" Key="O"/>
+                    </MenuFlyoutItem.KeyboardAccelerators>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Text="Save..." Click="MenuFileSaveItem_Click">
+                    <MenuFlyoutItem.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control" Key="S"/>
+                    </MenuFlyoutItem.KeyboardAccelerators>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem x:Name="MenuFileExitItem" Text="Exit" Click="MenuFileExitItem_Click"/>
+            </muxc:MenuBarItem>
+            <muxc:MenuBarItem Title="Edit">
+                <MenuFlyoutItem Text="Undo" Click="MenuEditUndoItem_Click">
+                    <MenuFlyoutItem.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control" Key="Z" IsEnabled="False"/>
+                    </MenuFlyoutItem.KeyboardAccelerators>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Text="Redo" Click="MenuEditRedoItem_Click">
+                    <MenuFlyoutItem.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control" Key="Y" IsEnabled="False"/>
+                    </MenuFlyoutItem.KeyboardAccelerators>
+                </MenuFlyoutItem>
+            </muxc:MenuBarItem>
+            <muxc:MenuBarItem Title="Build">
+                <MenuFlyoutItem Text="Compile" Click="MenuBuildCompileItem_Click">
+                    <MenuFlyoutItem.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control" Key="F6"/>
+                    </MenuFlyoutItem.KeyboardAccelerators>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Text="Run" Click="MenuBuildRunItem_Click">
+                    <MenuFlyoutItem.KeyboardAccelerators>
+                        <KeyboardAccelerator Modifiers="Control" Key="F5"/>
+                    </MenuFlyoutItem.KeyboardAccelerators>
+                </MenuFlyoutItem>
+            </muxc:MenuBarItem>
+            <muxc:MenuBarItem Title="Help">
+                <MenuFlyoutItem Text="View Help" Click="MenuHelpViewHelpItem_Click">
+                    <MenuFlyoutItem.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="F1"/>
+                    </MenuFlyoutItem.KeyboardAccelerators>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Text="About..." Click="MenuHelpAboutItem_Click"/>
+            </muxc:MenuBarItem>
+        </muxc:MenuBar>
+        <me:CodeEditorControl x:Name="CodeEditCtrl" Grid.Row="1" Grid.ColumnSpan="999"/>
+        <Page x:Name="GridSizeBar" Grid.Row="2" Grid.ColumnSpan="999" Canvas.ZIndex="999" Background="Transparent">
+            <Grid>
+                <VisualStateManager.VisualStateGroups>
+                    <VisualStateGroup x:Name="CommonStates">
+                        <VisualState x:Name="Normal"/>
+                        <VisualState x:Name="PointerOver">
+                            <VisualState.Setters>
+                                <Setter Target="GridSizeBar_OuterRect.Fill" Value="#40000000"/>
+                            </VisualState.Setters>
+                        </VisualState>
+                    </VisualStateGroup>
+                </VisualStateManager.VisualStateGroups>
+                <Rectangle x:Name="GridSizeBar_OuterRect" Height="8" Fill="#20000000" Margin="0,0,0,-8"/>
+            </Grid>
+        </Page>
+        <muxc:TabView Grid.Row="3" Grid.ColumnSpan="999" IsAddTabButtonVisible="False" TabWidthMode="SizeToContent">
+            <muxc:TabView.TabItems>
+                <muxc:TabViewItem Header="Compilation Output" IsClosable="False"/>
+            </muxc:TabView.TabItems>
+        </muxc:TabView>
+        <ScrollViewer x:Name="CompilationOutputTextScroller" Grid.Row="4" Grid.ColumnSpan="999" Height="100" Background="#10000000">
+            <TextBlock x:Name="CompilationOutputText" IsTextSelectionEnabled="True" Padding="4" FontFamily="Consolas"/>
+        </ScrollViewer>
+        <!--
+        <me:MicaEditorControl x:Name="CodeEditCtrl" Grid.Row="1" Grid.ColumnSpan="999"/>
+        -->
+    </Grid>
+</w32x:Window>
