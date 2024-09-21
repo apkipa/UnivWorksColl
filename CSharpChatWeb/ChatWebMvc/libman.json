@@ -1,0 +1,49 @@
+{
+  "version": "1.0",
+  "defaultProvider": "unpkg",
+  "libraries": [
+    {
+      "library": "vue@3.4.30",
+      "destination": "wwwroot/lib/vue/"
+    },
+    {
+      "library": "element-plus@2.7.6",
+      "destination": "wwwroot/lib/element-plus/"
+    },
+    {
+      "library": "@microsoft/signalr@latest",
+      "destination": "wwwroot/lib/microsoft/signalr/"
+    },
+    {
+      "library": "axios@1.7.2",
+      "destination": "wwwroot/lib/axios/"
+    },
+    {
+      "library": "primevue@4.0.0-rc.2",
+      "destination": "wwwroot/lib/primevue/",
+      "files": [
+        "umd/primevue.min.js"
+      ]
+    },
+    {
+      "library": "@primevue/themes@4.0.0-rc.2",
+      "destination": "wwwroot/lib/primevue/themes/",
+      "files": [
+        "umd/aura.min.js",
+        "umd/lara.min.js",
+        "umd/nora.min.js"
+      ]
+    },
+    {
+      "library": "primeicons@7.0.0",
+      "destination": "wwwroot/lib/primeicons/"
+    },
+    {
+      "library": "jquery@3.7.1",
+      "destination": "wwwroot/jquery/",
+      "files": [
+        "dist/jquery.min.js"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+﻿@page
+@model ChatWebMvc.Pages.Admin.RegisterConfirmModel
+@{
+    ViewData["Title"] = "注册申请确认";
+}
+
+<h1 class="display-4">注册申请确认</h1>
+
+<p><a asp-page="./Index">🡐 返回</a></p>
+
+<p>
+    <ul>
+        @if (TempData["Message"] != null)
+        {
+            <li style="color: green;">@TempData["Message"]</li>
+        }
+    </ul>
+</p>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>用户名</th>
+            <th>邮箱</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var user in Model.Users)
+    {
+        <tr>
+            <td>@user.UserName</td>
+            <td>@user.Email</td>
+            <td>
+                <form method="post">
+                    <input type="hidden" name="id" value="@user.Id" />
+                    <button asp-page-handler="Accept" type="submit" class="btn btn-primary btn-sm">确认</button>
+                    <button asp-page-handler="Reject" type="submit" class="btn btn-danger btn-sm">拒绝</button>
+                </form>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>
+
+<style>
+    td {
+        vertical-align: middle;
+    }
+</style>

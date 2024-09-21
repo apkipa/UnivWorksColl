@@ -1,0 +1,14 @@
+﻿@page
+@model ChatWebMvc.Pages.Admin.IndexModel
+@{
+    ViewData["Title"] = "管理员面板";
+}
+
+<h1 class="display-4">管理员面板</h1>
+
+<p>要继续，请选择一个操作：</p>
+<ul>
+    <li><a asp-page="./RegisterConfirm">注册申请确认</a></li>
+    <li><a asp-page="./AccountManage">账户管理</a></li>
+    <li><a asp-page="./ChatManage">聊天管理</a></li>
+</ul>

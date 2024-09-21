@@ -1,0 +1,1653 @@
+﻿@{
+    ViewData["NoOuterMargin"] = true;
+    ViewData["Title"] = "聊天";
+}
+
+<div class="h-100">
+    <!-- Loading placeholder -->
+    <div id="appPlaceholder" class="text-center">
+        <h1 class="display-4">正在加载聊天室……</h1>
+        <p></p>
+        <p>聊天室将出现在这里。如果没有显示，请尝试<a href="javascript:location.reload()">刷新页面</a>。</p>
+    </div>
+
+    <div id="app" class="h-100" style="visibility: hidden;">
+        <p-confirmdialog></p-confirmdialog>
+        <div class="layout-root h-100">
+            <!-- Expandable side drawer -->
+            <el-drawer v-model="appSideDrawer" class="app-side-drawer text-center" title="侧边栏"
+                       :with-header="false" direction="ltr" :append-to-body="false" size="300">
+                <span class="material-symbols-outlined" style="font-size: 48px">person</span>
+                <p>{{ thisUser.userName }}</p>
+                <el-button class="sidebar-button" text @@click="createGroupDialog.onOpen">
+                    <span class="material-symbols-outlined">group_add</span>&nbsp;新建群组
+                </el-button>
+                <div></div>
+                <el-button class="sidebar-button" text @@click="manageFriendRequests">
+                    <span class="material-symbols-outlined">person_add</span>&nbsp;管理好友请求
+                </el-button>
+            </el-drawer>
+
+            <!-- Chat app element container -->
+            <div class="chat-outer-container d-flex flex-row h-100">
+                <!-- Chat side bar (search, recent chats, ...) -->
+                <div class="chat-side-bar d-flex flex-column">
+                    <!-- Chat side top bar (search + menu) -->
+                    <div class="chat-side-bar-top-bar d-flex flex-row">
+                        <el-button @@click="appSideDrawer = !appSideDrawer" text circle style="z-index: 9999999;">
+                            <span class="material-symbols-outlined">menu</span>
+                        </el-button>
+                        <el-input v-model="chatsSearchContent" placeholder="搜索号码 / 消息" clearable style="margin-left: 4px; margin-right: 8px;"></el-input>
+                    </div>
+                    <!-- Chat side bar body -->
+                    <div id="chatSideBarBody" style="flex: 1; overflow-y: auto; overflow-x: hidden; user-select: none;">
+                        <div v-if="curSearchChatTarget" class="list-view-group-header">在此会话中搜索</div>
+                        <div v-if="curSearchChatTarget" class="chat-side-bar-item list-view-item d-flex flex-row align-items-center"
+                             style="--p-button-text-secondary-hover-background: #ececec; --p-button-text-secondary-active-background: gainsboro;">
+                            <div class="circle" style="height: 100%; margin-right: 8px;">
+                                <span class="material-symbols-outlined">{{ curSearchChatTarget.type == 'User' ? 'person' : 'group' }}</span>
+                            </div>
+                            <div class="two-row-even-arrange" style="flex: 1;">
+                                <div class="normal-text text-truncate">{{ curSearchChatTarget.target.userName || curSearchChatTarget.target.name }}</div>
+                                <div class="gray-text text-truncate" style="font-size: smaller;">{{ curSearchChatTarget.target.id }}</div>
+                            </div>
+                            <p-button icon="pi pi-times" text rounded severity="secondary" @@click="setChatSearchTarget(null)"></p-button>
+                        </div>
+                        <div v-if="chatsSearchContent.length > 0">
+                            <el-empty v-if="allGlobalNumberSearchResults.length + allRecentChatsFiltered.length * (!curSearchChatTarget) + allMessageSearchResults.length == 0"
+                                      class="h-100 d-flex align-items-center justify-content-center" description="搜索结果为空">
+                            </el-empty>
+                            <div v-else class="list-view" @@scroll="onSideBarListScroll" @@wheel="onSideBarListWheel">
+                                <!--
+                                <div>找到 {{ allGlobalNumberSearchResults.length }} 条记录</div>
+                                <div>
+                                    已加入的群组/好友将显示在这里
+                                </div>
+                                -->
+                                <div v-if="!curSearchChatTarget" v-for="chat in allRecentChatsFiltered" v-ripple
+                                     :key="chat.id" class="chat-side-bar-item list-view-item d-flex flex-row"
+                                     @@click="switchToChatTarget(chat)" :class="curChatTarget?.target.id === chat.target.id ? 'selected' : ''">
+                                    <div class="circle" style="height: 100%; margin-right: 8px;">
+                                        <span class="material-symbols-outlined">{{ chat.type == 'User' ? 'person' : 'group' }}</span>
+                                    </div>
+                                    <div class="two-row-even-arrange" style="flex: 1;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <div class="normal-text text-truncate">{{ chat.target.userName || chat.target.name }}</div>
+                                            <div class="gray-text text-truncate" style="text-align: right; font-size: smaller;">
+                                                {{ new Date(Date.parse(chat.chat.sendTime)).toLocaleString() }}
+                                            </div>
+                                        </div>
+                                        <div class="gray-text text-truncate" style="font-size: smaller;">{{ friendlyContentFromMsg(chat.chat) }}</div>
+                                    </div>
+                                </div>
+                                <div v-if="allGlobalNumberSearchResults.length > 0" class="list-view-group-header">全局搜索结果</div>
+                                <div v-for="result in allGlobalNumberSearchResults" :key="result" v-ripple
+                                     class="chat-side-bar-item list-view-item d-flex flex-row"
+                                     @@click="handleSearchResultClick(result)">
+                                    <div class="circle" style="height: 100%; margin-right: 8px;">
+                                        <span class="material-symbols-outlined">{{ result.type == 'User' ? 'person' : 'group' }}</span>
+                                    </div>
+                                    <div class="two-row-even-arrange" style="flex: 1;">
+                                        <div class="normal-text text-truncate">{{ result.userName }}</div>
+                                        <div class="gray-text text-truncate" style="font-size: smaller;">{{ result.id }}</div>
+                                    </div>
+                                </div>
+                                <div v-if="allMessageSearchResults.length > 0" class="list-view-group-header">找到 {{ allMessageSearchResultsTotalCount }} 条消息记录</div>
+                                <!--
+                                    @@click="switchToChatTarget({ target: msg.receiverId == thisUserId ? msg.senderDetails : msg.receiverDetails, chat: msg }, true)">
+                                    @@click="switchToChatTarget({ ...allRecentChats.find(x => x.target.id == (msg.receiverId == thisUserId ? msg.senderId : msg.receiverId)), chat: msg }, true)">
+                                    @@click="switchToChatTarget({ ...(allRecentChats.find(x => x.target.id == (msg.receiverId == thisUserId ? msg.senderId : msg.receiverId)) || { target: msg.receiverId == thisUserId ? msg.senderDetails : msg.receiverDetails }), chat: msg }, true)">
+                                -->
+                                <div v-for="msg in allMessageSearchResults" :key="msg.id" v-ripple
+                                     class="chat-side-bar-item list-view-item d-flex flex-row"
+                                     @@click="switchToChatTarget({ target: msg.receiverId == thisUserId ? msg.senderDetails : msg.receiverDetails, type: msg.receiver.kind, chat: msg }, true)">
+                                    <div class="circle" style="height: 100%; margin-right: 8px;">
+                                        <span class="material-symbols-outlined">{{ msg.receiver.kind == 'User' || curSearchChatTarget ? 'person' : 'group' }}</span>
+                                    </div>
+                                    <!-- Global: Display chat info -->
+                                    <div v-if="!curSearchChatTarget" class="two-row-even-arrange" style="flex: 1;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <div class="normal-text text-truncate">{{ msg.receiverId == thisUserId ? msg.senderDetails.userName : (msg.receiverDetails.userName || msg.receiverDetails.name) }}</div>
+                                            <div class="gray-text text-truncate" style="text-align: right; font-size: smaller;">
+                                                {{ new Date(Date.parse(msg.sendTime)).toLocaleString() }}
+                                            </div>
+                                        </div>
+                                        <div class="gray-text text-truncate" style="font-size: smaller;">{{ friendlyContentFromMsg(msg) }}</div>
+                                    </div>
+                                    <!-- Scoped to chat: Display sender info -->
+                                    <div v-else class="two-row-even-arrange" style="flex: 1;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <div class="normal-text text-truncate">{{ msg.senderDetails.userName }}</div>
+                                            <div class="gray-text text-truncate" style="text-align: right; font-size: smaller;">
+                                                {{ new Date(Date.parse(msg.sendTime)).toLocaleString() }}
+                                            </div>
+                                        </div>
+                                        <div class="gray-text text-truncate" style="font-size: smaller;">{{ friendlyContentFromMsg(msg) }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else>
+                            <el-empty v-if="allRecentChats.length == 0" class="h-100 d-flex align-items-center justify-content-center" description="会话列表为空"></el-empty>
+                            <div v-else class="list-view">
+                                <div v-if="!curSearchChatTarget" v-for="chat in allRecentChats" :key="chat.id" v-ripple
+                                     class="chat-side-bar-item list-view-item d-flex flex-row"
+                                     @@click="switchToChatTarget(chat)" :class="curChatTarget?.target.id === chat.target.id ? 'selected' : ''">
+                                    <div class="circle" style="height: 100%; margin-right: 8px;">
+                                        <span class="material-symbols-outlined">{{ chat.type == 'User' ? 'person' : 'group' }}</span>
+                                    </div>
+                                    <div class="two-row-even-arrange" style="flex: 1;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <div class="normal-text text-truncate">{{ chat.target.userName || chat.target.name }}</div>
+                                            <div class="gray-text" style="white-space: nowrap; text-align: right; font-size: smaller;">
+                                                {{ new Date(Date.parse(chat.chat.sendTime)).toLocaleString() }}
+                                            </div>
+                                        </div>
+                                        <div class="gray-text text-truncate" style="font-size: smaller;">{{ friendlyContentFromMsg(chat.chat) }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Chat content container -->
+                <div v-if="curChatTarget" class="chat-page-container d-flex flex-column w-100">
+                    <!-- Chat top bar -->
+                    <div class="chat-top-status-bar d-flex justify-content-between align-items-center" style="padding-bottom: 4px;">
+                        <div style="margin-left: 8px;">
+                            {{ curChatTarget.target.userName || curChatTarget.target.name }}
+                            <span class="gray-text">({{ curChatTarget.target.id }})</span>
+                        </div>
+                        <div class="chat-top-operations">
+                            <el-button text circle @@click="setChatSearchTarget(curChatTarget)">
+                                <span class="material-symbols-outlined">search</span>
+                            </el-button>
+                            <el-dropdown trigger="click" @@command="onChatTopDropDownCommand">
+                                <el-button text circle>
+                                    <span class="material-symbols-outlined">more_vert</span>
+                                </el-button>
+                                <template #dropdown>
+                                    <el-dropdown-menu>
+                                        <el-dropdown-item v-if="curChatTarget.type == 'User'" command="delete-friend" style="color: red;">删除好友</el-dropdown-item>
+                                        <el-dropdown-item v-if="curChatTarget.type == 'Group'" command="manage-group">管理群</el-dropdown-item>
+                                        <el-dropdown-item v-if="curChatTarget.type == 'Group'" command="leave-group" style="color: red;">离开群</el-dropdown-item>
+                                    </el-dropdown-menu>
+                                </template>
+                            </el-dropdown>
+                        </div>
+                    </div>
+                    <!-- Chat body (messages list) -->
+                    <div id="chatMessageListElem" class="chat-message-list" @@scroll="onChatMessageListScroll" @@wheel="onChatMessageListWheel">
+                        <div style="min-height: 0; display: flex; flex-direction: column; align-items: baseline;">
+                            <div class="chat-message-item" v-for="msg in curChatTargetData.messages" :key="msg.id" ref="refChatMessageItems"
+                                 :class="[msg.senderId == thisUserId ? 'from-self' : 'from-others', msg.shouldHighlight ? 'item-highlight-animate' : '']"
+                                 @@contextmenu="onChatMsgRightClick($event, msg)">
+                                <div v-if="msg.senderId != thisUserId && curChatTarget.type == 'Group'" style="font-size: smaller;"
+                                     :style="'color: chocolate; font-weight: bold;'">
+                                    {{ msg.senderDetails?.userName }}
+                                </div>
+                                <div v-if="false">
+                                    {{ msg }}
+                                </div>
+                                <div v-if="msg.kind == 'PlainText'">
+                                    {{ msg.content }}
+                                </div>
+                                <div v-else-if="msg.kind == 'File'" class="d-flex flex-row" style="cursor: pointer;" @@click="onChatMsgFileClick(msg)">
+                                    <div class="d-flex flex-row align-items-center justify-content-center"
+                                         style="margin-right: 8px; height: 56px; aspect-ratio: 1 / 1; background-color: #00000030; border-radius: 8px;">
+                                        <p-image v-if="['jpg', 'jpeg', 'png'].includes(msg.content.split('.').pop().toLowerCase())"
+                                                 :src="'/api/file/preview?fileId=' + msg.content.slice(0, msg.content.indexOf('.'))"
+                                                 width="56" height="56" preview></p-image>
+                                        <i v-else class="pi pi-file" style="font-size: 1.2rem;"></i>
+                                    </div>
+                                    <div class="two-row-even-arrange">
+                                        <div>{{ friendlyContentFromMsg(msg) }}</div>
+                                        <a :href="'/api/file/download?fileId=' + msg.content.slice(0, msg.content.indexOf('.'))"
+                                           :download="friendlyContentFromMsg(msg)">下载</a>
+                                    </div>
+                                </div>
+                                <div v-else>
+                                    {{ msg }}
+                                </div>
+                                <div :class="msg.senderId == thisUserId ? 'dimgray-text' : 'gray-text'" style="text-align: end; font-size: smaller;">
+                                    {{ new Date(Date.parse(msg.sendTime)).toLocaleString() }}
+                                </div>
+                            </div>
+                            <div style="min-height: 0.1px; width: 100%;"></div>
+                        </div>
+                        <p-contextmenu ref="chatMsgContextMenu" :model="chatMsgContextMenuItems"></p-contextmenu>
+                    </div>
+                    <!-- Chat bottom bar (input, ...) -->
+                    <div class="chat-input-area" style="display: flex;">
+                        <el-button text circle @@click="onChatUploadFile">
+                            <span class="material-symbols-outlined">attach_file</span>
+                        </el-button>
+                        <el-input v-model="message" placeholder="请输入消息" style="margin: 0 4px;" @@keyup.enter="onMessageEnterPress"></el-input>
+                        <el-button @@click="sendMessage" type="primary" :disabled="message.length === 0">发送</el-button>
+                    </div>
+                </div>
+                <el-empty v-else class="w-100" description="选择一个对话以开始聊天"></el-empty>
+            </div>
+
+            <!-- Dialogs -->
+            <el-dialog v-model="createGroupDialog.visible"
+                       title="新建群组"
+                       width="500">
+                <span>
+                    群组名
+                    <el-input v-model="createGroupDialog.name"></el-input>
+                </span>
+                <template #footer>
+                    <div class="dialog-footer">
+                        <el-button @@click="createGroupDialog.visible = false">取消</el-button>
+                        <el-button type="primary" @@click="createGroupDialog.onSubmit">
+                            创建
+                        </el-button>
+                    </div>
+                </template>
+            </el-dialog>
+            <el-dialog v-model="requestAddFriendDialog.visible"
+                       title="添加好友"
+                       width="500">
+                <span>
+                    <p>你即将向 {{ requestAddFriendDialog.targetUser.userName }} 发送加好友请求。</p>
+                    验证消息
+                    <el-input v-model="requestAddFriendDialog.requestMessage"></el-input>
+                </span>
+                <template #footer>
+                    <div class="dialog-footer">
+                        <el-button @@click="requestAddFriendDialog.visible = false">取消</el-button>
+                        <el-button type="primary" @@click="requestAddFriendDialog.onSend">
+                            发送请求
+                        </el-button>
+                    </div>
+                </template>
+            </el-dialog>
+            <el-dialog v-model="manageFriendRequestsDialog.visible"
+                       title="好友请求管理"
+                       width="500" append-to-body>
+                <div>
+                    <div v-for="req in manageFriendRequestsDialog.allRequests" :key="req.id">
+                        <div class="list-view-item d-flex flex-row align-items-center" style="height: 56px; padding: 4px; padding-right: 8px;">
+                            <div class="circle" style="height: 100%; margin-right: 8px;">
+                                <span class="material-symbols-outlined">person</span>
+                            </div>
+                            <div style="overflow: hidden;">
+                                <div style="white-space: nowrap;">{{ req.from.userName }} ({{ req.from.id }})</div>
+                                <div style="white-space: nowrap; color: gray;">验证消息: {{ req.requestMessage }}</div>
+                            </div>
+                            <div style="flex: 1;"></div>
+                            <div v-if="req.state == 'Pending'">
+                                <el-button type="primary" @@click="manageFriendRequestsDialog.onAccept(req)">接受</el-button>
+                                <el-button type="danger" @@click="manageFriendRequestsDialog.OnReject(req)">拒绝</el-button>
+                            </div>
+                            <div v-else-if="req.state == 'Accepted'">
+                                <el-button type="success" disabled>已接受</el-button>
+                            </div>
+                            <div v-else-if="req.state == 'Rejected'">
+                                <el-button type="danger" disabled>已拒绝</el-button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </el-dialog>
+            <p-dialog v-model:visible="uploadingFilesDialog.visible" modal header="正在上传文件...">
+                <p>请勿关闭此对话框，否则上传将被取消。</p>
+                <div class="d-flex flex-column align-items-center">
+                    <p-progressspinner></p-progressspinner>
+                </div>
+                <p></p>
+            </p-dialog>
+            <el-dialog v-model="manageChatGroupDialog.visible" title="管理群组" width="500" append-to-body>
+                <div class="d-flex flex-row align-items-center" style="color: black; font-size: larger;">
+                    <div class="circle" style="height: 44px; margin-right: 8px;">
+                        <span class="material-symbols-outlined">group</span>
+                    </div>
+                    <div class="two-row-even-arrange" style="flex: 1;">
+                        <div>{{ manageChatGroupDialog.group.name }}</div>
+                        <div class="gray-text text-truncate" style="font-size: smaller;">{{ manageChatGroupDialog.group.id }}</div>
+                    </div>
+                </div>
+                <div style="margin: 8px 0;">
+                    <div class="d-flex flex-row align-items-center" style="margin-bottom: 8px;">
+                        <div>群组成员</div>
+                        <p-button v-if="manageChatGroupDialog.meIsOperator" size="small" class="ms-auto" icon="pi pi-user-plus" label="添加成员" @@click="manageChatGroupDialog.onAddMember"></p-button>
+                    </div>
+                    <div style="color: black; font-size: larger;">
+                        <div v-for="member in manageChatGroupDialog.members" :key="member.id" class="list-view-item d-flex flex-row align-items-center"
+                             style="height: 56px; padding: 6px;">
+                            <div class="circle" style="height: 100%; margin-right: 8px;">
+                                <span class="material-symbols-outlined">person</span>
+                            </div>
+                            <div class="two-row-even-arrange" style="flex: 1;">
+                                <div>{{ member.userName }}</div>
+                                <div class="gray-text text-truncate" style="font-size: smaller;">{{ member.id }}</div>
+                            </div>
+                            <div v-if="manageChatGroupDialog.group.ownerId == member.id" class="gray-text" style="font-size: smaller;">群主</div>
+                            <div v-else-if="manageChatGroupDialog.meIsOperator" class="d-flex flex-row align-items-center">
+                                <p-button v-if="!member.isOperator" size="small" severity="warn" text rounded label="设为管理员" @@click="manageChatGroupDialog.onSwitchMemberOperator(member)"></p-button>
+                                <p-button v-if="member.isOperator" size="small" severity="warn" text rounded label="解除管理员" @@click="manageChatGroupDialog.onSwitchMemberOperator(member)"></p-button>
+                                <p-button size="small" severity="danger" text rounded label="移除" @@click="manageChatGroupDialog.onRemoveMember(member)"></p-button>
+                            </div>
+                            <div v-else-if="member.isOperator" class="gray-text" style="font-size: smaller;">管理员</div>
+                        </div>
+                    </div>
+                </div>
+                <p-button v-if="manageChatGroupDialog.group.ownerId == thisUserId" size="small" severity="danger" style="width: 100%;" @@click="manageChatGroupDialog.onDeleteGroup">删除群组</p-button>
+            </el-dialog>
+            <el-dialog v-model="groupAddMemberDialog.visible" title="添加群组成员" width="500" append-to-body>
+                <div>
+                    <p>在你的好友列表中选择一个人加入此群聊。</p>
+                    <div style="color: black; font-size: larger;">
+                        <div v-for="friend in groupAddMemberDialog.friendsList" :key="friend.id" class="list-view-item d-flex flex-row align-items-center"
+                             style="height: 56px; padding: 6px;">
+                            <div class="circle" style="height: 100%; margin-right: 8px;">
+                                <span class="material-symbols-outlined">person</span>
+                            </div>
+                            <div class="two-row-even-arrange" style="flex: 1;">
+                                <div>{{ friend.userName }}</div>
+                                <div class="gray-text text-truncate" style="font-size: smaller;">{{ friend.id }}</div>
+                            </div>
+                            <p-button size="small" @@click="groupAddMemberDialog.onAdd(friend)" severity="primary" label="添加"></p-button>
+                        </div>
+                    </div>
+                </div>
+            </el-dialog>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<partial name="_SignalRPartial" />
+<script src="~/lib/vue/dist/vue.global.js"></script>
+<link rel="stylesheet" href="~/lib/element-plus/dist/index.css" />
+<script src="~/lib/element-plus/dist/index.full.min.js"></script>
+<script src="~/lib/axios/dist/axios.min.js"></script>
+<script src="~/lib/primevue/umd/primevue.min.js"></script>
+<script src="~/lib/primevue/themes/umd/aura.min.js"></script>
+<link href="~/lib/primeicons/primeicons.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+<script>
+    const { ref, reactive, watch, watchEffect, computed, createApp, onMounted, nextTick } = Vue;
+    const { ElButton, ElInput, ElInputNumber, ElMessage, ElMessageBox, ElNotification } = ElementPlus;
+
+    window.onerror = function (msg, url, line, col, error) {
+        console.log(error);
+        ElMessage.error(`${msg}`);
+    };
+    window.onunhandledrejection = function (error) {
+        console.log(error);
+        ElMessage.error(`${error}`);
+    };
+
+    axios.defaults.baseURL = window.location.origin;
+    axios.defaults.transformResponse = [function (data) {
+        console.log(data);
+        data = JSON.parse(data);
+        const code = data.code ?? data.status;
+        const msg = data.msg ?? data.errors;
+        if (code >= 0) {
+            return data.data;
+        }
+        // Otherwise, throw with data.code and data.msg
+        throw new Error(`${code}: ${msg}`);
+        return null;
+    }];
+
+    const vueApp = createApp({
+        setup() {
+            const confirm = PrimeVue.useConfirm();
+
+            const refChatMessageItems = ref();
+            const appSideDrawer = ref(false);
+            const message = ref('');
+            const messages = ref([]);
+            const thisUser = ref(null);
+            const thisUserId = computed(() => thisUser.value?.id);
+            const allGlobalNumberSearchResults = ref([]);
+            const allMessageSearchResults = ref([]);
+            const allMessageSearchResultsHasMore = ref(false);
+            const allMessageSearchResultsTotalCount = ref(0);
+            const allRecentUserChats = ref([]);
+            const allRecentGroupChats = ref([]);
+            // allRecentChats is allRecentUserChats + allRecentGroupChats sorted by last chat msg time
+            const allRecentChats = computed(() => {
+                const users = allRecentUserChats.value.map(x => ({ ...x, type: 'User' }));
+                const groups = allRecentGroupChats.value.map(x => ({ ...x, type: 'Group' }));
+                return [...users, ...groups].sort((a, b) => Date.parse(b.chat.sendTime) - Date.parse(a.chat.sendTime));
+            });
+            const allRecentChatsFiltered = computed(() => {
+                return allRecentChats.value.filter(x => x.target.id.toString().includes(chatsSearchContent.value));
+            });
+            const chatsSearchContent = ref('');
+            const curChatTarget = ref(null);
+            const curChatTargetData = reactive({
+                messages: [],
+                autoScrollEligible: false,
+                beforeHasMore: false,
+                afterHasMore: false,
+            });
+            const curSearchChatTarget = ref(null);
+            const chatMsgContextMenu = ref();
+            const chatMsgContextMenuItems = computed(() => {
+                var items = [];
+                items.push({ label: '复制', icon: 'pi pi-copy', command: () => onCopyChatMsg() });
+                if (isMsgSentFromSelf(chatMsgContextMenuSelectedItem.value)) {
+                    items.push({ label: '删除', icon: 'pi pi-trash', command: () => onDeleteChatMsg() });
+                }
+                return items;
+            });
+            const chatMsgContextMenuSelectedItem = ref(null);
+            const onChatMessageListWheel = (e) => {
+                //console.log(e);
+                onChatMessageListScroll(e);
+            };
+            const onChatMessageListScroll = (e) => {
+                // Fetch more data
+                const triggerThreshold = 300;
+                //console.log(e);
+                const target = document.getElementById('chatMessageListElem');
+                if (target.scrollTop < triggerThreshold) {
+                    // Load more messages before
+                    loadMoreChatMsgs('before');
+                }
+                if (target.scrollHeight - target.scrollTop - target.clientHeight < triggerThreshold) {
+                    // Load more messages after
+                    loadMoreChatMsgs('after');
+                }
+            };
+            const onSideBarListWheel = (e) => {
+                //console.log(e);
+                onSideBarListScroll(e);
+            };
+            const onSideBarListScroll = (e) => {
+                // Fetch more data
+                const triggerThreshold = 300;
+                //console.log(e);
+                const target = document.getElementById('chatSideBarBody');
+                if (target.scrollTop < triggerThreshold) {
+                    // Load more messages before
+                }
+                if (target.scrollHeight - target.scrollTop - target.clientHeight < triggerThreshold) {
+                    // Load more messages after
+                    loadMoreSideBarSearchMsgs();
+                }
+            };
+            const createGroupDialog = reactive({
+                visible: false,
+                name: '',
+
+                async onOpen() {
+                    appSideDrawer.value = false;
+
+                    createGroupDialog.visible = true;
+                    createGroupDialog.name = '';
+                },
+                async onSubmit() {
+                    try {
+                        const resp = await axios.post('/api/group/create', {
+                            groupName: createGroupDialog.name,
+                        });
+                        ElMessage.success('群组已创建');
+                        createGroupDialog.visible = false;
+                    } catch (err) {
+                        console.error(err);
+                        ElMessage.error(`${err}`);
+                    }
+                },
+            });
+            const requestAddFriendDialog = reactive({
+                visible: false,
+                targetUser: null,
+                requestMessage: '',
+
+                async onOpen() {
+                    requestAddFriendDialog.visible = true;
+                    requestAddFriendDialog.requestMessage = '';
+                },
+                async onSend() {
+                    try {
+                        console.log(requestAddFriendDialog.targetUser);
+                        const resp = await axios.post('/api/friend/request-add', {
+                            targetId: requestAddFriendDialog.targetUser.id,
+                            message: requestAddFriendDialog.requestMessage,
+                        });
+                        requestAddFriendDialog.visible = false;
+                        ElMessage.success('好友请求已发送');
+                    } catch (err) {
+                        console.error(err);
+                        ElMessage.error(`${err}`);
+                    }
+                },
+            });
+            const manageFriendRequestsDialog = reactive({
+                visible: false,
+                allRequests: [],
+
+                async onOpen() {
+                    manageFriendRequestsDialog.allRequests = [];
+                    manageFriendRequestsDialog.visible = true;
+
+                    await manageFriendRequestsDialog.reloadList();
+                },
+                async onAccept(req) {
+                    try {
+                        const resp = await axios.post('/api/friend/accept-add', {
+                            friendRequestId: req.id,
+                        });
+                        ElMessage.success('已通过好友请求');
+                        await manageFriendRequestsDialog.reloadList();
+                    } catch (err) {
+                        console.error(err);
+                        ElMessage.error(`${err}`);
+                    }
+                },
+                async OnReject(req) {
+                    try {
+                        const resp = await axios.post('/api/friend/reject-add', {
+                            friendRequestId: req.id,
+                        });
+                        ElMessage.success('已拒绝好友请求');
+                        await manageFriendRequestsDialog.reloadList();
+                    } catch (err) {
+                        console.error(err);
+                        ElMessage.error(`${err}`);
+                    }
+                },
+                async reloadList() {
+                    try {
+                        const resp = await axios.get('/api/friend/my-friend-requests');
+                        manageFriendRequestsDialog.allRequests = resp.data;
+                    } catch (err) {
+                        manageFriendRequestsDialog.allRequests = [];
+                        console.error(err);
+                        ElMessage.error(`${err}`);
+                    }
+                },
+            });
+            const uploadingFilesDialog = reactive({
+                visible: false,
+            });
+            const manageChatGroupDialog = reactive({
+                visible: false,
+                group: null,
+                members: [],
+                meIsOperator: false,
+
+                async onOpen() {
+                    manageChatGroupDialog.group = curChatTarget.value.target;
+                    manageChatGroupDialog.visible = true;
+                    manageChatGroupDialog.members = [];
+
+                    const watcherAdded = watchEffect(() => {
+                        if (groupAddMemberDialog.added) {
+                            manageChatGroupDialog.reloadMembers();
+                        }
+                    });
+                    const watcherAddDialogVisbile = watch(() => groupAddMemberDialog.visible, () => {
+                        if (!groupAddMemberDialog.visible) {
+                            watcherAdded();
+                            watcherAddDialogVisbile();
+                        }
+                    });
+
+                    await manageChatGroupDialog.reloadMembers();
+                },
+                async onSwitchMemberOperator(member) {
+                    try {
+                        const resp = await axios.post(member.isOperator ? '/api/group/unset-operator' : '/api/group/set-operator', {
+                            groupId: manageChatGroupDialog.group.id,
+                            userId: member.id,
+                        });
+                        //ElMessage.success('已切换管理员');
+                        await manageChatGroupDialog.reloadMembers();
+                    } catch (err) {
+                        console.error(err);
+                        ElMessage.error(`${err}`);
+                    }
+                },
+                async onRemoveMember(member) {
+                    confirm.require({
+                        message: `确实要移除 \`${member.userName}\` 吗?`,
+                        header: '移除成员?',
+                        icon: 'pi pi-exclamation-triangle',
+                        rejectProps: {
+                            label: '取消',
+                            severity: 'secondary',
+                            outlined: true
+                        },
+                        acceptProps: {
+                            label: '移除',
+                            severity: 'danger',
+                        },
+                        accept: async () => {
+                            try {
+                                const resp = await axios.post('/api/group/remove-member', {
+                                    groupId: manageChatGroupDialog.group.id,
+                                    userId: member.id,
+                                });
+                                ElMessage.success('已移除成员');
+                                await manageChatGroupDialog.reloadMembers();
+                            } catch (err) {
+                                console.error(err);
+                                ElMessage.error(`${err}`);
+                            }
+                        },
+                    });
+                },
+                async onDeleteGroup() {
+                    confirm.require({
+                        message: '确实要删除此群组吗? 此操作不可逆。',
+                        header: '删除群组?',
+                        icon: 'pi pi-exclamation-triangle',
+                        rejectProps: {
+                            label: '取消',
+                            severity: 'secondary',
+                            outlined: true
+                        },
+                        acceptProps: {
+                            label: '删除',
+                            severity: 'danger',
+                        },
+                        accept: async () => {
+                            try {
+                                const resp = await axios.post('/api/group/delete', {
+                                    groupId: manageChatGroupDialog.group.id,
+                                });
+                                ElMessage.success('群组已删除');
+                                manageChatGroupDialog.visible = false;
+                                resetChatTarget();
+                            } catch (err) {
+                                console.error(err);
+                                ElMessage.error(`${err}`);
+                            }
+                        },
+                    });
+                },
+                async onAddMember() {
+                    groupAddMemberDialog.onOpen();
+                },
+                async reloadMembers() {
+                    try {
+                        const resp = await axios.get('/api/group/list-members', {
+                            params: {
+                                groupId: manageChatGroupDialog.group.id,
+                            },
+                        });
+                        manageChatGroupDialog.members = resp.data;
+                        manageChatGroupDialog.meIsOperator = manageChatGroupDialog.members.find(x => x.id == thisUserId.value)?.isOperator || false;
+                    } catch (err) {
+                        manageChatGroupDialog.members = [];
+                        console.error(err);
+                        ElMessage.error(`${err}`);
+                    }
+                },
+            });
+            const groupAddMemberDialog = reactive({
+                visible: false,
+                targetGroup: null,
+                friendsList: [],
+                added: false,
+
+                async onOpen() {
+                    groupAddMemberDialog.visible = true;
+                    groupAddMemberDialog.targetGroup = manageChatGroupDialog.group;
+                    groupAddMemberDialog.added = false;
+                    try {
+                        const resp = await axios.get('/api/friend/my-friends');
+                        // Exclude candidates already in group
+                        groupAddMemberDialog.friendsList = resp.data.filter(x => !manageChatGroupDialog.members.some(y => y.id == x.id));
+                    } catch (err) {
+                        console.error(err);
+                        ElMessage.error(`${err}`);
+                    }
+                },
+                async onAdd(target) {
+                    try {
+                        const resp = await axios.post('/api/group/add-member', {
+                            groupId: groupAddMemberDialog.targetGroup.id,
+                            userId: target.id,
+                        });
+                        ElMessage.success('已添加成员');
+                        groupAddMemberDialog.added = true;
+                        groupAddMemberDialog.visible = false;
+                    } catch (err) {
+                        console.error(err);
+                        ElMessage.error(`${err}`);
+                    }
+                },
+            });
+
+            const chatHub = window.chatHub;
+            chatHub.on("OnReceiveNewMessage", async (fromId, toId, msgId, details) => {
+                //messages.value.push(`${fromId}, ${toId}, ${msgId}: ${details}`);
+
+                if (msgId == 0) {
+                    // Special: System notification, such as friend removal
+                    // NOTE: Just refresh the recent chats list for now
+                    await reloadRecentChats();
+                    return;
+                }
+
+                const chatMsg = JSON.parse(details);
+
+                if (chatMsg.isDeleted) {
+                    // Handle deleted message
+                    await reloadRecentChats();
+
+                    // Remove from the chat list when the chat target is the same
+                    if (curChatTarget.value?.target.id == fromId || curChatTarget.value?.target.id == toId) {
+                        curChatTargetData.messages = curChatTargetData.messages.filter(x => x.id != msgId);
+                    }
+
+                    return;
+                }
+
+                // Update recent chats list if chat exists, or add a new one
+                var updatedTargetId = null;
+                var chatExists = false;
+                allRecentUserChats.value.forEach(x => {
+                    if (x.target.id == fromId && thisUserId.value == toId || x.target.id == toId && thisUserId.value == fromId) {
+                        x.chat = chatMsg;
+                        chatExists = true;
+                        updatedTargetId = x.target.id;
+                    }
+                });
+                allRecentGroupChats.value.forEach(x => {
+                    if (x.target.id == toId) {
+                        x.chat = chatMsg;
+                        chatExists = true;
+                        updatedTargetId = x.target.id;
+                    }
+                });
+                if (!chatExists) {
+                    await reloadRecentChats();
+
+                    allRecentUserChats.value.forEach(x => {
+                        if (x.target.id == fromId && thisUserId.value == toId || x.target.id == toId && thisUserId.value == fromId) {
+                            updatedTargetId = x.target.id;
+                        }
+                    });
+                    allRecentGroupChats.value.forEach(x => {
+                        if (x.target.id == toId) {
+                            updatedTargetId = x.target.id;
+                        }
+                    });
+                }
+
+                // Add to the chat list when the chat target is the same
+                if (curChatTarget.value?.target.id == updatedTargetId) {
+                    curChatTargetData.messages.push(chatMsg);
+                }
+            });
+            chatHub.start().then(() => {
+                console.log("SignalR connection established.");
+            }).catch(err => {
+                console.error(err);
+            });
+
+            const principalIdFromMsg = msg => {
+                return msg.senderId == thisUserId.value ? msg.receiverId : msg.senderId;
+            };
+            const isMsgSentFromSelf = (msg) => {
+                return msg?.senderId == thisUserId.value;
+            };
+            const friendlyContentFromMsg = msg => {
+                if (msg.kind == 'PlainText') {
+                    return msg.content;
+                } else if (msg.kind == 'File') {
+                    return msg.content.slice(msg.content.indexOf('.') + 1);
+                } else {
+                    return msg.content;
+                }
+            };
+            const sendMessage = async () => {
+                const resp = await axios.post('/api/chat/send-msg', {
+                    principalId: curChatTarget.value.target.id,
+                    content: message.value,
+                    type: 'PlainText',
+                });
+
+                /*chatHub.invoke("SendMessage", message.value).catch(err => {
+                    console.error(err);
+                });*/
+                message.value = '';
+            };
+            const onMessageEnterPress = () => {
+                if (message.value.length > 0) {
+                    sendMessage();
+                }
+            };
+            const manageFriendRequests = () => {
+                appSideDrawer.value = false;
+
+                manageFriendRequestsDialog.onOpen();
+            };
+            const handleSearchResultClick = (item) => {
+                if (item.type == 'User') {
+                    requestAddFriendDialog.targetUser = item;
+                    requestAddFriendDialog.onOpen();
+                } else if (item.type == 'Group') {
+                    ElMessage.info('你不能直接加入此群组。请让此群组的管理员邀请你加入群。');
+                } else {
+                    ElMessage.error(`不支持类型 ${item.type}`);
+                }
+            };
+            const resetChatTarget = () => {
+                curChatTarget.value = null;
+                /*curChatTargetData.messages = [];
+                curChatTargetData.beforeHasMore = false;
+                curChatTargetData.afterHasMore = false;*/
+            };
+            const switchToChatTarget = async (target, noResetAndHighlightInstead) => {
+                const shouldHighlightMsg = !!noResetAndHighlightInstead;
+
+                if (!target) {
+                    return;
+                }
+                if (!target.hasOwnProperty('target')) {
+                    //ElMessage.error('无法切换到此聊天。请检查你是否有访问权限。');
+                    //return;
+                    //target.target = null;
+                }
+
+                if (curChatTarget.value?.target.id == target.target.id) {
+                    if (!noResetAndHighlightInstead) {
+                        resetChatTarget();
+                        return;
+                    } else {
+                        // Find the message to highlight
+                        const msg = curChatTargetData.messages.find(x => x.id == target.chat?.id);
+                        if (msg) {
+                            delete msg.shouldHighlight;
+                            await nextTick();
+                            msg.shouldHighlight = true;
+                            refChatMessageItems.value.find(x => x.__vnode.key == msg.id).scrollIntoView({ behavior: 'smooth' });
+                            return;
+                        }
+                        // Otherwise, we should drop current chat data and reload
+                    }
+                }
+
+                curChatTarget.value = target;
+
+                // Load chat messages
+                curChatTargetData.messages = [];
+                curChatTargetData.autoScrollEligible = false;
+                curChatTargetData.beforeHasMore = false;
+                curChatTargetData.afterHasMore = false;
+                try {
+                    if (target.chat) {
+                        if (shouldHighlightMsg) {
+                            //target.chat.shouldHighlight = true;
+                        }
+                        curChatTargetData.messages.push(target.chat);
+                    }
+
+                    // Load after
+                    let resp = await axios.get('/api/chat/get-msgs', {
+                        params: {
+                            principalId: target.target.id,
+                            msgId: target.chat?.id,
+                            direction: 'after',
+                            msgCount: 20,
+                        }
+                    });
+                    // Prevent stale data
+                    if (curChatTarget.value?.target.id != target.target.id) {
+                        return;
+                    }
+                    console.log(resp.data);
+                    curChatTargetData.messages = resp.data.messages;
+                    if (shouldHighlightMsg) {
+                        resp.data.messages[0].shouldHighlight = true;
+                    }
+                    //curChatTargetData.beforeHasMore = true;
+                    curChatTargetData.afterHasMore = resp.data.hasMore;
+
+                    // Is chatMessageListElem scrollable?
+                    const chatMessageListElem = document.getElementById('chatMessageListElem');
+                    if (!chatMessageListElem) {
+                        return;
+                    }
+                    await nextTick();
+                    const isChatMessageListScrollable = chatMessageListElem.scrollHeight > chatMessageListElem.clientHeight;
+
+                    // Load before
+                    resp = await axios.get('/api/chat/get-msgs', {
+                        params: {
+                            principalId: target.target.id,
+                            msgId: target.chat?.id,
+                            direction: 'before',
+                            msgCount: 20,
+                        }
+                    });
+                    // Prevent stale data
+                    if (curChatTarget.value?.target.id != target.target.id) {
+                        return;
+                    }
+                    console.log(resp.data);
+                    resp.data.messages.pop();
+                    curChatTargetData.messages = [...resp.data.messages, ...curChatTargetData.messages];
+                    curChatTargetData.beforeHasMore = resp.data.hasMore;
+
+                    // Scroll to bottom
+                    if (!isChatMessageListScrollable) {
+                        await nextTick();
+                        chatMessageListElem.scrollTop = chatMessageListElem.scrollHeight;
+                    } else {
+                        chatMessageListElem.scrollTop++;
+                        //nextTick(() => chatMessageListElem.scrollTop--);
+                    }
+
+                    // Enable auto scroll
+                    curChatTargetData.autoScrollEligible = true;
+                } catch (err) {
+                    console.error(err);
+                    ElMessage.error(`${err}`);
+                }
+            };
+            const onChatMsgRightClick = (e, msg) => {
+                // Do nothing if text is selected for this chat bubble
+                const selection = document.getSelection();
+                if (selection.type === 'Range' && e.target.contains(selection.anchorNode)) {
+                    return;
+                }
+
+                chatMsgContextMenuSelectedItem.value = msg;
+                chatMsgContextMenu.value.show(e);
+            };
+            const onCopyChatMsg = () => {
+                if (chatMsgContextMenuSelectedItem.value) {
+                    if (!navigator.clipboard) {
+                        ElMessage.error('你的浏览器禁止了剪切板访问，请手动复制。');
+                        return;
+                    }
+                    navigator.clipboard.writeText(friendlyContentFromMsg(chatMsgContextMenuSelectedItem.value));
+                    ElMessage.success('消息已复制到剪贴板');
+                }
+            };
+            const onDeleteChatMsg = () => {
+                if (chatMsgContextMenuSelectedItem.value) {
+                    /*ElMessageBox.confirm('确实要删除此消息吗？', '删除消息', {
+                        confirmButtonText: '删除',
+                        cancelButtonText: '取消',
+                        type: 'warning',
+                    }).then(() => {
+                        // TODO: Delete chat API
+                        ElMessage.success('消息已删除');
+                    }).catch(() => {
+                        //ElMessage.info('已取消删除');
+                    });*/
+                    confirm.require({
+                        message: '确实要删除此消息吗? 此操作不可逆。',
+                        header: '删除消息?',
+                        icon: 'pi pi-exclamation-triangle',
+                        rejectLabel: '取消',
+                        rejectProps: {
+                            label: '取消',
+                            severity: 'secondary',
+                            outlined: true
+                        },
+                        acceptProps: {
+                            label: '删除',
+                            severity: 'danger'
+                        },
+                        accept: async () => {
+                            await axios.post('/api/chat/delete-msg', {
+                                msgId: chatMsgContextMenuSelectedItem.value.id,
+                            });
+
+                            ElMessage.success('消息已删除');
+                        },
+                        reject: () => {
+                            //ElMessage.info('已取消删除');
+                        }
+                    });
+                }
+            };
+            const onChatMsgFileClick = msg => {
+                // TODO: onChatMsgFileClick
+            };
+            const onChatTopDropDownCommand = (command) => {
+                if (command == 'delete-friend') {
+                    confirm.require({
+                        message: '确实要删除此好友吗? 此操作不可逆。',
+                        header: '删除好友?',
+                        icon: 'pi pi-exclamation-triangle',
+                        rejectLabel: '取消',
+                        rejectProps: {
+                            label: '取消',
+                            severity: 'secondary',
+                            outlined: true
+                        },
+                        acceptProps: {
+                            label: '删除',
+                            severity: 'danger'
+                        },
+                        accept: async () => {
+                            await axios.post('/api/friend/remove-friend', {
+                                friendId: curChatTarget.value.target.id,
+                            });
+
+                            ElMessage.success('好友已删除');
+                            resetChatTarget();
+                        },
+                        reject: () => {
+                            //ElMessage.info('已取消删除');
+                        }
+                    });
+                } else if (command == 'manage-group') {
+                    manageChatGroupDialog.onOpen();
+                } else if (command == 'leave-group') {
+                    confirm.require({
+                        message: '确实要离开此群组吗?',
+                        header: '离开群组?',
+                        icon: 'pi pi-exclamation-triangle',
+                        rejectProps: {
+                            label: '取消',
+                            severity: 'secondary',
+                            outlined: true
+                        },
+                        acceptProps: {
+                            label: '离开',
+                            severity: 'danger',
+                        },
+                        accept: async () => {
+                            try {
+                                const resp = await axios.post('/api/group/remove-member', {
+                                    groupId: curChatTarget.value.target.id,
+                                    userId: thisUserId.value,
+                                });
+                                ElMessage.success('已离开群组');
+                                resetChatTarget();
+                                await reloadRecentChats();
+                            } catch (err) {
+                                console.error(err);
+                                ElMessage.error(`${err}`);
+                            }
+                        },
+                    });
+                } else {
+                    ElMessage.error(`未知命令 ${command}`);
+                }
+            };
+            const reloadRecentChats = async () => {
+                const resRecentChats = await axios.get('/api/chat/recent-chats');
+                console.log(resRecentChats.data);
+                allRecentUserChats.value = resRecentChats.data.users;
+                allRecentGroupChats.value = resRecentChats.data.groups;
+            };
+            const loadMoreChatMsgs = async (direction) => {
+                if (direction === 'before') {
+                    if (!curChatTargetData.beforeHasMore) {
+                        return;
+                    }
+                    curChatTargetData.beforeHasMore = false;
+
+                    const firstMsg = curChatTargetData.messages[0];
+                    const resp = await axios.get('/api/chat/get-msgs', {
+                        params: {
+                            principalId: curChatTarget.value.target.id,
+                            msgId: firstMsg.id,
+                            direction: 'before',
+                            msgCount: 20,
+                        }
+                    });
+                    if (resp.data.messages.at(-1).id === firstMsg.id) {
+                        resp.data.messages.pop();
+                    }
+                    curChatTargetData.messages = [...resp.data.messages, ...curChatTargetData.messages];
+                    curChatTargetData.beforeHasMore = resp.data.hasMore;
+                } else if (direction === 'after') {
+                    if (!curChatTargetData.afterHasMore) {
+                        return;
+                    }
+                    curChatTargetData.afterHasMore = false;
+
+                    const lastMsg = curChatTargetData.messages.at(-1);
+                    const resp = await axios.get('/api/chat/get-msgs', {
+                        params: {
+                            principalId: curChatTarget.value.target.id,
+                            msgId: lastMsg.id,
+                            direction: 'after',
+                            msgCount: 20,
+                        }
+                    });
+                    if (resp.data.messages[0].id === lastMsg.id) {
+                        resp.data.messages.shift();
+                    }
+                    curChatTargetData.messages = [...curChatTargetData.messages, ...resp.data.messages];
+                    curChatTargetData.afterHasMore = resp.data.hasMore;
+                }
+            };
+            const setChatSearchTarget = (target) => {
+                if ((curSearchChatTarget.value && !target) || (!curSearchChatTarget.value && target)) {
+                    // Found major difference, clear search box
+                    chatsSearchContent.value = '';
+                }
+                curSearchChatTarget.value = target;
+            };
+            const loadMoreSideBarSearchMsgs = async () => {
+                if (!allMessageSearchResultsHasMore.value) {
+                    return;
+                }
+                allMessageSearchResultsHasMore.value = false;
+
+                const resp = await axios.get('/api/search/search-msgs', {
+                    params: {
+                        principalId: curSearchChatTarget.value?.target.id || '',
+                        keyword: chatsSearchContent.value,
+                        msgId: allMessageSearchResults.value?.at(-1)?.id || '',
+                        msgCount: 20,
+                    }
+                });
+                console.log(resp.data);
+                allMessageSearchResults.value = [...allMessageSearchResults.value, ...resp.data.messages];
+                allMessageSearchResultsHasMore.value = resp.data.hasMore;
+                //allMessageSearchResultsTotalCount.value = resp.data.totalCount;
+            };
+            const onChatUploadFile = () => {
+                const input = document.createElement('input');
+                input.type = 'file';
+
+                input.onchange = async () => {
+                    const file = input.files[0];
+                    if (!file) {
+                        return;
+                    }
+
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    const controller = new AbortController();
+
+                    const watcher = watch(() => uploadingFilesDialog.visible, (newValue, oldValue) => {
+                        if (!newValue) {
+                            controller.abort();
+                            watcher();
+                        }
+                    });
+
+                    try {
+                        uploadingFilesDialog.visible = true;
+
+                        // Upload file
+                        let resp = await axios.post('/api/file/upload', formData, {
+                            headers: {
+                                'Content-Type': 'multipart/form-data'
+                            }
+                        }, { signal: controller.signal });
+                        console.log(resp.data);
+
+                        // Send file message
+                        resp = await axios.post('/api/chat/send-msg', {
+                            principalId: curChatTarget.value.target.id,
+                            content: `${resp.data.fileId}.${file.name}`,
+                            type: 'File',
+                        }, { signal: controller.signal });
+                    } catch (err) {
+                        console.error(err);
+                        // Exclude CanceledError
+                        if (err.name != 'CanceledError') {
+                            ElMessage.error(`${err}`);
+                        }
+                    } finally {
+                        uploadingFilesDialog.visible = false;
+                    }
+                };
+
+                input.click();
+            };
+
+            // Watch search box
+            watch(chatsSearchContent, async (newValue, oldValue) => {
+                if (newValue.length == 0) {
+                    allGlobalNumberSearchResults.value = [];
+                    allMessageSearchResults.value = [];
+                    allMessageSearchResultsHasMore.value = false;
+                    allMessageSearchResultsTotalCount.value = 0;
+                    return;
+                }
+                // NOTE: Delay the data update for better UX experience
+                let results = [];
+                try {
+                    // Load principal search results
+                    // NOTE: Load only when not scoped by search chat target
+                    if (!curSearchChatTarget.value) {
+                        const respPrincipal = await axios.get('/api/search/search-principals', {
+                            params: { keyword: newValue }
+                        });
+                        for (var i of respPrincipal.data.users) {
+                            if (i.id == thisUserId.value || allRecentUserChats.value.some(x => x.target.id == i.id)) {
+                                continue;
+                            }
+
+                            i.type = 'User';
+                            results.push(i);
+                        }
+                        for (var i of respPrincipal.data.groups) {
+                            if (allRecentGroupChats.value.some(x => x.target.id == i.id)) {
+                                continue;
+                            }
+
+                            i.type = 'Group';
+                            results.push(i);
+                        }
+                    }
+
+                    // Load message search results
+                    const respMsg = await axios.get('/api/search/search-msgs', {
+                        params: {
+                            principalId: curSearchChatTarget.value?.target.id || '',
+                            keyword: newValue,
+                            msgId: '',
+                            msgCount: 20,
+                        }
+                    });
+                    console.log(respMsg.data.messages);
+                    allMessageSearchResults.value = respMsg.data.messages;
+                    allMessageSearchResultsHasMore.value = respMsg.data.hasMore;
+                    allMessageSearchResultsTotalCount.value = respMsg.data.totalCount;
+                } catch (err) {
+                    console.error(err);
+                    ElMessage.error(`${err}`);
+                } finally {
+                    allGlobalNumberSearchResults.value = results;
+                }
+            });
+
+            watch(() => curChatTargetData.messages.length, async (newValue, oldValue) => {
+                console.log('>?????');
+                console.log(newValue);
+                console.log(oldValue);
+                console.log('<?????');
+                /*if (!oldValue || !newValue) {
+                    return;
+                }*/
+                if (!curChatTargetData.autoScrollEligible) {
+                    return;
+                }
+                if (newValue == oldValue) {
+                    return;
+                }
+
+                // If chatMessageListElem is currently scrolled to bottom, scroll it
+                // to bottom at next tick
+                const chatMessageListElem = document.getElementById('chatMessageListElem');
+                if (!chatMessageListElem) {
+                    return;
+                }
+                console.log(chatMessageListElem.scrollHeight);
+                console.log(chatMessageListElem.scrollHeight - chatMessageListElem.scrollTop - chatMessageListElem.clientHeight);
+                if (chatMessageListElem.scrollHeight - chatMessageListElem.scrollTop - chatMessageListElem.clientHeight < 1) {
+                    await nextTick();
+                    // Scroll with animation
+                    chatMessageListElem.scrollTo({
+                        top: chatMessageListElem.scrollHeight,
+                        behavior: 'smooth',
+                    });
+                }
+            });
+
+            onMounted(async () => {
+                // The Vue app has been loaded, remove placeholders now
+                appPlaceholder.remove();
+                app.style.removeProperty('visibility');
+
+                const resMyInfo = await axios.get('/api/auth/myinfo');
+                thisUser.value = resMyInfo.data;
+
+                await reloadRecentChats();
+            });
+
+            return {
+                refChatMessageItems,
+                appSideDrawer,
+                message,
+                messages,
+                thisUser,
+                thisUserId,
+                allGlobalNumberSearchResults,
+                allMessageSearchResults,
+                allMessageSearchResultsHasMore,
+                allMessageSearchResultsTotalCount,
+                allRecentUserChats,
+                allRecentGroupChats,
+                allRecentChats,
+                allRecentChatsFiltered,
+                chatsSearchContent,
+                curChatTarget,
+                curChatTargetData,
+                curSearchChatTarget,
+                chatMsgContextMenu,
+                chatMsgContextMenuItems,
+                chatMsgContextMenuSelectedItem,
+                onChatMessageListScroll,
+                onChatMessageListWheel,
+                onSideBarListScroll,
+                onSideBarListWheel,
+                createGroupDialog,
+                requestAddFriendDialog,
+                manageFriendRequestsDialog,
+                uploadingFilesDialog,
+                manageChatGroupDialog,
+                groupAddMemberDialog,
+                confirm,
+                principalIdFromMsg,
+                isMsgSentFromSelf,
+                friendlyContentFromMsg,
+                sendMessage,
+                onMessageEnterPress,
+                manageFriendRequests,
+                handleSearchResultClick,
+                resetChatTarget,
+                switchToChatTarget,
+                onChatMsgRightClick,
+                onCopyChatMsg,
+                onDeleteChatMsg,
+                onChatMsgFileClick,
+                onChatTopDropDownCommand,
+                reloadRecentChats,
+                loadMoreChatMsgs,
+                setChatSearchTarget,
+                loadMoreSideBarSearchMsgs,
+                onChatUploadFile,
+            };
+        }
+    });
+    vueApp.config.errorHandler = (err, vm, info) => {
+        console.log(err);
+        console.log(vm);
+        console.log(info);
+        ElMessage.error(`${err}`);
+    };
+    vueApp.use(ElementPlus);
+    vueApp.use(PrimeVue.Config, {
+        theme: {
+            preset: PrimeVue.Themes.Aura
+        },
+        ripple: true,
+        zIndex: {
+            modal: 9100,        //dialog, drawer
+            overlay: 1000,      //select, popover
+            menu: 1000,         //overlay menus
+            tooltip: 1100       //tooltip
+        },
+    });
+    vueApp.component('p-button', PrimeVue.Button);
+    vueApp.component('p-dialog', PrimeVue.Dialog);
+    vueApp.component('p-image', PrimeVue.Image);
+    vueApp.component('p-progressspinner', PrimeVue.ProgressSpinner);
+    vueApp.component('p-contextmenu', PrimeVue.ContextMenu);
+    vueApp.component('p-confirmdialog', PrimeVue.ConfirmDialog);
+    vueApp.directive('ripple', PrimeVue.Ripple);
+    vueApp.use(PrimeVue.ConfirmationService);
+    vueApp.mount('#app');
+</script>
+}
+
+<style>
+    #app {
+        border: 1px solid lightgray;
+        border-radius: 8px;
+        padding: 8px;
+    }
+
+    #app .app-side-drawer {
+        position: relative;
+        height: 100%;
+    }
+
+    #app .el-overlay {
+        position: relative;
+    }
+
+    .layout-root {
+        display: grid;
+        grid-template-rows: 1fr;
+        grid-template-columns: 1fr;
+    }
+
+    .layout-root > * {
+        grid-row: 1;
+        grid-column: 1;
+    }
+
+    .chat-outer-container {
+        overflow: hidden;
+    }
+
+    .chat-outer-container > * {
+    }
+
+    .sidebar-button {
+        width: 100%;
+    }
+
+    .chat-side-bar {
+        border-width: 0;
+        border-style: solid;
+        border-color: lightgray;
+        border-right-width: 1px;
+        width: 300px;
+        flex: 0 0 auto;
+    }
+
+    .chat-side-bar-top-bar {
+        border-width: 0;
+        border-style: solid;
+        border-color: transparent;
+        border-bottom-width: 1px;
+        padding-bottom: 4px;
+    }
+
+    .chat-top-status-bar {
+        border-width: 0;
+        border-style: solid;
+        border-color: lightgray;
+        border-bottom-width: 1px;
+    }
+    .chat-input-area {
+        border-width: 0;
+        border-style: solid;
+        border-color: lightgray;
+        border-top-width: 1px;
+        padding: 4px 8px;
+    }
+
+    .chat-message-list {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding-top: 8px;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    .chat-message-item {
+        position: relative;
+        max-width: calc(100% - 80px);
+        background-color: gainsboro;
+        margin: 0 14px 8px 14px;
+        padding: 6px 12px;
+        border-radius: 16px 16px 16px 0;
+        scroll-margin-top: 8px;
+    }
+
+    /*
+    .chat-message-item.from-others::before {
+        content: '';
+        position: absolute;
+        background-color: gainsboro;
+        left: -16px;
+        bottom: 0;
+        width: 16px;
+        height: 12px;
+        z-index: -1;
+    }
+
+    .chat-message-item.from-others::after {
+        content: '';
+        position: absolute;
+        background-color: white;
+        left: -25px;
+        bottom: -1px;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+        z-index: -1;
+    }
+    */
+
+    .chat-message-item.from-others::before {
+        content: url('data:image/svg+xml;utf8,<svg version="1.1" id="" xmlns="http://www.w3.org/2000/svg" width="16" height="16" xmlns:xlink="http://www.w3.org/1999/xlink"  style="" xml:space="preserve"><path d="M16 0A22.6274 22.6274 0 0 1 9.37258 16L16 16Z" fill="gainsboro"></path></svg>');
+        position: absolute;
+        left: -16px;
+        bottom: 0;
+        line-height: 0;
+    }
+
+    .chat-message-item.from-self {
+        background-color: deepskyblue;
+        margin-left: auto;
+        border-radius: 16px 16px 0 16px;
+    }
+
+    /*
+    .chat-message-item.from-self::before {
+        content: '';
+        position: absolute;
+        background-color: deepskyblue;
+        right: -16px;
+        bottom: 0;
+        width: 16px;
+        height: 12px;
+        z-index: -1;
+    }
+
+    .chat-message-item.from-self::after {
+        content: '';
+        position: absolute;
+        background-color: white;
+        right: -25px;
+        bottom: -1px;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+        z-index: -1;
+    }
+    */
+
+    .chat-message-item.from-self::before {
+        content: url('data:image/svg+xml;utf8,<svg version="1.1" id="" xmlns="http://www.w3.org/2000/svg" width="16" height="16" xmlns:xlink="http://www.w3.org/1999/xlink"  style="" xml:space="preserve"><path d="M16 0A22.6274 22.6274 0 0 1 9.37258 16L16 16Z" fill="deepskyblue"></path></svg>');
+        position: absolute;
+        right: -16px;
+        bottom: 0;
+        line-height: 0;
+        transform: scaleX(-1);
+    }
+
+    .circle {
+        border-radius: 50%;
+        border: 1px solid lightgray;
+        aspect-ratio: 1 / 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .chat-side-bar-item {
+        height: 56px;
+        user-select: none;
+        padding: 6px;
+    }
+
+    .list-view {
+        height: 100%;
+    }
+
+    .list-view-group-header {
+        background-color: whitesmoke;
+        color: gray;
+        padding: 0 4px;
+    }
+
+    .list-view-item {
+        width: 100%;
+    }
+
+    .list-view-item:hover {
+        background-color: aliceblue;
+    }
+
+    .list-view-item.selected {
+        background-color: dodgerblue;
+    }
+
+    .normal-text {
+    }
+
+    .gray-text {
+        color: gray;
+    }
+
+    .dimgray-text {
+        color: dimgray;
+    }
+
+    .selected .normal-text {
+        color: white;
+    }
+
+    .selected .gray-text {
+        color: white;
+    }
+
+    .two-row-even-arrange {
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-evenly;
+    }
+
+    @@keyframes item-highlight {
+        0% {
+            background-color: yellow;
+            opacity: 0.7;
+        }
+        100% {
+            background-color: transparent;
+        }
+    }
+
+    .item-highlight-animate::after {
+        content: '';
+        position: absolute;
+        left: -99999px !important;
+        top: -4px !important;
+        right: -99999px !important;
+        bottom: -4px !important;
+        width: 999999px !important;
+        height: calc(100% + 8px) !important;
+        animation: item-highlight 2s;
+        animation-timing-function: ease-out;
+        pointer-events: none;
+    }
+
+    .chat-top-operations {
+        display: flex;
+        flex-direction: row;
+        gap: 6px;
+    }
+
+    .p-image img {
+        object-fit: contain;
+        border-radius: 8px;
+    }
+
+    .p-image-preview-mask {
+        border-radius: 8px;
+    }
+</style>

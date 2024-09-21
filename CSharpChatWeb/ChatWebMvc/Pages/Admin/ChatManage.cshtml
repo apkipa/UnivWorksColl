@@ -1,0 +1,193 @@
+﻿@page
+@model ChatWebMvc.Pages.Admin.ChatManageModel
+@{
+    ViewData["Title"] = "聊天管理";
+}
+
+<h1 class="display-4">聊天管理</h1>
+
+<p><a asp-page="./Index">🡐 返回</a></p>
+
+<p>
+    <ul>
+        @if (TempData["Message"] != null)
+        {
+            <li style="color: @(TempData["MessageColor"] ?? "green");">@TempData["Message"]</li>
+        }
+    </ul>
+</p>
+
+<div>
+    关键词筛选：
+    <input type="text" id="keywordSearchInput" />
+    <button id="submitKeyworkdSearchBtn" class="btn btn-primary btn-sm">搜索</button>
+</div>
+
+<table class="table">
+    <thead>
+        <tr class="text-nowrap">
+            <th>发送者</th>
+            <th>接收者</th>
+            <th>消息内容</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody id="tableBody">
+    </tbody>
+</table>
+
+<style>
+    td {
+        vertical-align: middle;
+    }
+    tr.removed {
+        color: gray;
+        text-decoration-line: line-through;
+    }
+    td button {
+    }
+    tr.removed button {
+    }
+</style>
+
+@section Scripts {
+    <script>
+        $(function () {
+            var hasMore = true;
+            var lastMsgId = null;
+
+            function loadMore() {
+                if (!hasMore) {
+                    return;
+                }
+                hasMore = false;
+
+                const keyword = encodeURIComponent($("#keywordSearchInput").val());
+                $.get(`?handler=ChatMsgs&keyword=${keyword}&msgId=${lastMsgId ?? ""}&count=20`, function (data) {
+                    try {
+                        data = unwrapApiJson(data);
+                    } catch (e) {
+                        console.error(e);
+                        $.toast({
+                            heading: '请求错误',
+                            text: "加载失败: " + e,
+                            showHideTransition: 'slide',
+                            icon: 'error',
+                        });
+                        return;
+                    }
+                    var tableBody = $("#tableBody");
+                    if (!lastMsgId) {
+                        tableBody.empty();
+                    }
+                    $.each(data.msgs, function (index, item) {
+                        var tr = $("<tr>");
+                        tr.append($("<td>").text(item.senderId));
+                        tr.append($("<td>").text(item.receiverId));
+                        tr.append($("<td>").text(item.content));
+                        var td = $("<td>");
+                        var button = $('<button class="btn btn-sm text-nowrap"></button>');
+                        if (item.isDeleted) {
+                            tr.addClass("removed");
+                            button.addClass("btn-primary");
+                            button.text("还原");
+                        } else {
+                            button.addClass("btn-danger");
+                            button.text("删除");
+                        }
+                        button.click(function () {
+                            if (tr.hasClass("removed")) {
+                                $.post("?handler=UndeleteChatMsg", { id: item.id }, function (data) {
+                                    data = unwrapApiJson(data);
+
+                                    tr.removeClass("removed");
+                                    button.removeClass("btn-primary");
+                                    button.addClass("btn-danger");
+                                    button.text("删除");
+
+                                    $.toast({
+                                        text: "已还原消息。",
+                                        showHideTransition: 'slide',
+                                        icon: 'success',
+                                    });
+                                });
+                                return;
+                            } else {
+                                $.post("?handler=DeleteChatMsg", { id: item.id }, function (data) {
+                                    data = unwrapApiJson(data);
+
+                                    tr.addClass("removed");
+                                    button.addClass("btn-primary");
+                                    button.removeClass("btn-danger");
+                                    button.text("还原");
+
+                                    $.toast({
+                                        text: "已删除消息。",
+                                        showHideTransition: 'slide',
+                                        icon: 'success',
+                                    });
+                                });
+                            }
+                        });
+                        td.append(button);
+                        tr.append(td);
+                        tableBody.append(tr);
+                    });
+
+                    hasMore = data.hasMore;
+                    lastMsgId = data.msgs.length > 0 ? data.msgs[data.msgs.length - 1].id : null;
+
+                    if (hasMore) {
+                        // Load more if page is not yet scrollable
+                        if ($(document).height() <= $(window).height()) {
+                            loadMore();
+                        }
+                    }
+                }).catch(function (e) {
+                    // Prevent further errors
+                    hasMore = false;
+
+                    console.error(e);
+                    $.toast({
+                        heading: '请求错误',
+                        text: "加载失败: " + e,
+                        showHideTransition: 'slide',
+                        icon: 'error',
+                    });
+                }).always(function () {
+                    // Do nothing
+                });
+            }
+
+            // Trigger initial load
+            loadMore();
+
+            // Try to load more on user scroll
+            const scrollThreshold = 300;
+            $(window).scroll(function () {
+                if ($(window).scrollTop() + $(window).height() >= $(document).height() - scrollThreshold) {
+                    loadMore();
+                }
+            });
+            window.addEventListener("wheel", function () {
+                if ($(window).scrollTop() + $(window).height() >= $(document).height() - scrollThreshold) {
+                    loadMore();
+                }
+            });
+
+            $("#submitKeyworkdSearchBtn").click(function () {
+                hasMore = true;
+                lastMsgId = null;
+                loadMore();
+            });
+            // Handle Enter key
+            $("#keywordSearchInput").keypress(function (e) {
+                if (e.which === 13) {
+                    hasMore = true;
+                    lastMsgId = null;
+                    loadMore();
+                }
+            });
+        });
+    </script>
+}

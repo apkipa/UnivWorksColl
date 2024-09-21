@@ -1,0 +1,19 @@
+﻿<Window x:Class="ChatWpf.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:ChatWpf"
+        xmlns:hc="https://handyorg.github.io/handycontrol"
+        mc:Ignorable="d"
+        FontSize="{StaticResource TextFontSize}"
+        hc:Dialog.Token="MainWndDialog"
+        Title="网上沟通交流系统" Height="450" Width="800">
+
+    <hc:SimplePanel>
+        <Frame x:Name="RootFrame" NavigationUIVisibility="Hidden" FontSize="{StaticResource TextFontSize}" />
+        <hc:ScrollViewer VerticalScrollBarVisibility="Hidden" HorizontalAlignment="Right" Background="{x:Null}" IsPenetrating="True" Panel.ZIndex="9999">
+            <StackPanel hc:Growl.Token="MainWnd" VerticalAlignment="Top" Background="{x:Null}" />
+        </hc:ScrollViewer>
+    </hc:SimplePanel>
+</Window>
